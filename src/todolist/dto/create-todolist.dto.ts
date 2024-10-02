@@ -16,4 +16,7 @@ export class CreateTodolistDto {
     @IsBoolean()
     @IsOptional()
     completed: boolean
+    
+    @IsOptional()
+    usuario?: string;
 }

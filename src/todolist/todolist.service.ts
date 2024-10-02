@@ -18,10 +18,11 @@ export class TodolistService {
   ) { }
 
   
-  async create(createTodolistDto: CreateTodolistDto) {
-    let { description, title } = createTodolistDto;
+  async create(createTodolistDto: CreateTodolistDto, user?: any) {
+    let { description, title , usuario} = createTodolistDto;
     description = description.toLowerCase().trim();
     title = title.toLowerCase().trim();
+    usuario = user;
 
     let todoExist: Todolist;
     todoExist = await this.todoModel.findOne({ title });
@@ -34,35 +35,42 @@ export class TodolistService {
 
     let todoCreated = await this.todoModel.create({
       title,
-      description
+      description,
+      usuario,
     });
 
     return todoCreated;
   }
 
-  async findAll(page: string = '0', limit:  string = '0') {
+  async findAll(page: string = '0', limit:  string = '0', user?: any) {
 
     if (Number(page) == 1) {
       page = (Number(page) - 1).toString();
     }
 
     const todoList = await this.todoModel
-      .find({})
+      .find({
+      usuario: user
+      })
       .skip(Number(page))
       .limit(Number(limit))
-      .sort({ created: 1 });
-    const countsTodos = await this.todoModel.countDocuments({});
+      .sort({ created: 1 })
+      .populate('usuario', '_id name email');
+    const countsTodos = await this.todoModel.countDocuments({
+      usuario: user
+    });
     return { todoList, total: countsTodos, page: ( Number(page) == 0 ) ? 1 : Number(page), limit: Number(limit), todoListLength: todoList.length };
   }
 
- async findOne(id: string) {
+ async findOne(id: string, user?: any) {
     
     if (!isValidObjectId(id)) {
       throw new BadRequestException(`${id} no es a valid mongo id`);
     }
 
     const todoDb = await this.todoModel.findOne({
-      _id: id
+      _id: id,
+      usuario: user
     })
     // .select('name email roles isActive');
 
@@ -73,13 +81,13 @@ export class TodolistService {
     return todoDb;
   }
 
-  async update(id: string, updateTodolistDto: UpdateTodolistDto) {
+  async update(id: string, updateTodolistDto: UpdateTodolistDto, user?: any) {
     await this.findOne(id);
 
     updateTodolistDto.updated = Date.now();
     const todoUpdate = await this.todoModel.findByIdAndUpdate(
       id,
-      { update_at: Date.now(), ...updateTodolistDto },
+      { update_at: Date.now(), usuario: user , ...updateTodolistDto },
       {
         new: true,
       },
@@ -92,24 +100,25 @@ export class TodolistService {
 
   }
 
-  async remove(id: string) {
+  async remove(id: string, user?: any) {
     const todo = await this.findOne(id);
     if (!todo) {
       throw new BadRequestException(`El usuario con el id ${id} no existe`);
     }
     const todoDeleted = await this.todoModel.deleteOne({
-      _id: id
+      _id: id,
+      usuario: user
     });
 
     return todoDeleted;
   }
 
 
-  async findTodoByTerm(term: string, desde: string = '0') {
-    console.log (term, desde);
+  async findTodoByTerm(term: string, desde: string = '0', user?: any) {
     let expRegular = new RegExp(term, 'i');
     const todolist = await this.todoModel
       .find({
+        usuario: user,
         $or: [{ title: expRegular }, { description: expRegular }],
       },'')
       .skip(Number(desde))
